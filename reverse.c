@@ -1,50 +1,76 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
 int main(int argc, char *argv[])
 {
+    // input and output filenames
+    char *inputFileName = argv[1];
+    char *outputFileName = argv[2];
 
-    if (argc == 0)
+    FILE *in = stdin;
+    FILE *out = stdout;
+
+    FILE *userInput = stdin;
+
+    // IF NO ARGUMENTS
+    if (argc == 1)
     {
-        FILE *userInput = stdin;
+        userInput = stdin;
     }
-    else if (argc == 1)
+
+    // IF ONLY 1 ARGUMENT //lol also works for 3 argument file read
+    else if (argc >= 2)
     {
-        char *inputFile = argv[0];
-        FILE *userInput = stdin;
-        fprintf(getline(userInput).reverse());
+        in = fopen(inputFileName, "r");
+        if (in == 0)
+        {
+            prinf("error: cannot open file 'input.txt'");
+            exit(1);
+        }
+        fileHandling(FILE * in, FILE * out)
     }
 
-    else if (argc == 2)
+    // IF 2 ARGUMENTS
+    else if (argc == 3)
     {
-        char *inputFile = argv[0];
 
-        FILE *userInput = stdin;
+        inputFile = fopen(inputFileName, "r");
         readFile(userInput);
-        char *outputFile = argv[1];
 
         // WRITE FILE
         FILE *WriteFile;
         WriteFile = fopen(outputFile, "w");
     }
 
+    // IF MORE THAN 2 ARGUMENTS
+    else if (argc > 3)
+    {
+        printf("usage: reverse <input> <output>");
+        exit(1);
+    }
+
+    // ELSE
     else
     {
         printf("wery broken c-code ah yes");
+        fprintf(stderr, "whatever the error message is\n");
     }
 
-    exit(1);
+    exit(0);
 }
 
-char readFile(inputFile)
+void fileHandling(FILE *input, FILE *out)
 {
     // OPEN FILE
     FILE *readFile;
-    readFile = fopen(inputFile, "r");
+    readFile = fopen(inputFileName, "r");
 
     // READ FILE
     getline(&buffer, &size, stdin);
 
     // REVERSE LINES
 
-    return (0)
+    return (0);
 }
