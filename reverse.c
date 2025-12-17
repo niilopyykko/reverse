@@ -1,7 +1,10 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+void fileHandling(FILE *in, FILE *out);
 
 int main(int argc, char *argv[])
 {
@@ -12,12 +15,10 @@ int main(int argc, char *argv[])
     FILE *in = stdin;
     FILE *out = stdout;
 
-    FILE *userInput = stdin;
-
     // IF NO ARGUMENTS
     if (argc == 1)
     {
-        userInput = stdin;
+        in = stdin;
     }
 
     // IF ONLY 1 ARGUMENT //lol also works for 3 argument file read
@@ -27,7 +28,7 @@ int main(int argc, char *argv[])
         if (in == 0)
         // IF FILE OPEN FAIL
         {
-            fprinf(stderr, "error: cannot open file 'input.txt'");
+            fprintf(stderr, "error: cannot open file 'input.txt'");
             exit(1);
         }
     }
@@ -36,16 +37,16 @@ int main(int argc, char *argv[])
     if (argc == 3)
     {
         // COMPARE INPUT OUTPUT FILENAMES
-        if (strcmp(argv[1], argv[2]) == 0)
+        if (strcmp(inputFileName, outputFileName) == 0)
         {
             fprintf(stderr, "Input and output file must differ\n");
             exit(1);
         }
-        out = fopen(argv[2], "w");
+        out = fopen(outputFileName, "w");
         // IF FILE OPEN FAIL
         if (out == 0)
         {
-            fprinf(stderr, "error: cannot open file 'input.txt'");
+            fprintf(stderr, "error: cannot open file 'input.txt'");
             exit(1);
         }
     }
