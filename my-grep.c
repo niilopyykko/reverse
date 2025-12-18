@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 
     if (argc == 2)
     {
-        while (getline(&buffer, &bufsize, stdin))
+        while (getline(&buffer, &bufsize, stdin) != -1)
         {
             if (strstr(buffer, hakusana) != 0) // man strstr
             {
