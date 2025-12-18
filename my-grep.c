@@ -7,9 +7,8 @@
 
 int main(int argc, char *argv[])
 {
-    char *buffer = 0;    // for getline and fgets
-    size_t bufsize = 32; // for getline and fgets
-    char *hakusana = argv[1];
+    char *buffer = 0;    // for getline
+    size_t bufsize = 32; // for getline
     FILE *fp;
 
     if (argc <= 1)
@@ -17,9 +16,18 @@ int main(int argc, char *argv[])
         printf("my-grep: searchterm [file ...]\n");
         exit(1);
     }
+
+    char *hakusana = argv[1];
+
     if (argc == 2)
     {
-        fp = fgets(*buffer, bufsize, stdin);
+        while (getline(&buffer, &bufsize, stdin))
+        {
+            if (strstr(buffer, hakusana) != 0) // man strstr
+            {
+                printf("%s", buffer);
+            }
+        }
     }
     for (size_t i = 2; i <= argc - 1; i++)
     {
@@ -27,19 +35,19 @@ int main(int argc, char *argv[])
 
         if (fp == NULL)
         {
-            printf("cannot open file\n");
+            printf("my-grep: cannot open file\n");
             exit(1);
         }
 
         while (!feof(fp))
         {
             getline(&buffer, &bufsize, fp);
-            if (strcmp(buffer, hakusana) == 1)
+            if (strstr(buffer, hakusana) != 0) // man strstr
             {
                 printf("%s", buffer);
             }
         }
-        printf("\n");
+        free(buffer);
         fclose(fp);
     }
 

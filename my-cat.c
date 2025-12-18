@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
             fgets(buffer, 100, fp);
             printf("%s", buffer);
         }
-        printf("\n");
         fclose(fp);
     }
     return (0);
