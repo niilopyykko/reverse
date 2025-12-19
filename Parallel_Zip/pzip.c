@@ -32,14 +32,13 @@ typedef struct
 void *worker(void *arg)
 {
     chunk *chunk = arg; // worker input back to chuck structure
-
-    int previousCharacter = EOF;
-    int currentCharacter = 0;
+    int previousCharacter = 0;
     int counter = 0;
-    FILE *readFile = arg;
 
-    while ((currentCharacter = fgetc(readFile)) != EOF)
+    for (int i = chunk->start; i < chunk->end; i++)
     {
+        int currentCharacter = chunk->data[i];
+
         if (counter == 0)
         {
             previousCharacter = currentCharacter;
@@ -50,27 +49,40 @@ void *worker(void *arg)
             counter++;
         }
         else
+        // memory addressing is needed for linking two or more chunks together in seperate worker instances
+        // EXAMPLE: worker1 [aaaabb], worker2 [bbaaaa] should ultimately return [4a2b] and [2b4a]
+        // this would be combined to [4a4b4a]
         {
-            previousCharacter = currentCharacter;
-            counter = 1;
+            memcpy(chunk->buff + chunk->buffsize, &counter, sizeof(int)); // last matching character or only one match
+            chunk->buffsize += sizeof(int);                               // clear buffer size
+            chunk->buff[chunk->buffsize] = previousCharacter;             // reset fist item of buffer to last char
+
+            previousCharacter = currentCharacter; // save as above, but for local variables
+            counter = 1;                          // save as above, but for local variables
         }
+    }
+    if (counter > 0)
+    {
+        memcpy(chunk->buff + chunk->buffsize, &counter, sizeof(int));
+        chunk->buffsize += sizeof(int);
+        chunk->buff[chunk->buffsize++] = previousCharacter;
     }
     return NULL;
 }
 int main(int argc, char *argv[])
 {
-    int fd;
-    char *addr;
-    off_t offset, pa_offset;
-    size_t length;
-    struct stat sb;
-
-    int availableThreads = get_nprocs(); // THIS TELLS THE PARALLELLISM^TM system how many cores/threads is available
-    pthread_t workers[availableThreads];
-    chunk chunks[availableThreads];
-
     for (size_t i = 1; i < argc; i++)
     {
+        int fd;
+        char *addr;
+        off_t offset, pa_offset;
+        size_t length;
+        struct stat sb;
+
+        int availableThreads = get_nprocs(); // THIS TELLS THE PARALLELLISM^TM system how many cores/threads is available
+        pthread_t workers[availableThreads];
+        chunk chunks[availableThreads];
+
         {
             fprintf(stderr, "%s file offset [length]\n", argv[0]);
             exit(EXIT_FAILURE);
@@ -78,10 +90,10 @@ int main(int argc, char *argv[])
 
         fd = open(argv[1], O_RDONLY);
         if (fd == -1)
-            handle_error("open");
+            perror("open");
 
         if (fstat(fd, &sb) == -1) /* To obtain file size */
-            handle_error("fstat");
+            perror("fstat");
 
         offset = atoi(argv[2]);
         pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
@@ -108,7 +120,7 @@ int main(int argc, char *argv[])
         addr = mmap(NULL, length + offset - pa_offset, PROT_READ,
                     MAP_PRIVATE, fd, pa_offset);
         if (addr == MAP_FAILED)
-            handle_error("mmap");
+            perror("mmap");
 
         size_t chunk_size = length / availableThreads;
 
@@ -116,22 +128,21 @@ int main(int argc, char *argv[])
         {
             chunks[i].data = addr;
             chunks[i].start = i * chunk_size;
-            chunks[i].end = (i == availableThreads - 1); // pls keksi tähän jtn järkeä
-            chunks[i].buff = malloc(chunks[i].end - chunks[i].start);
+            chunks[i].end = (i == availableThreads - 1);
+            chunks[i].buff = malloc(chunks[i].end - chunks[i].start + 1); // worst case scenario size for chunk lenght
             chunks[i].buffsize = 0;
             pthread_create(&workers[i], NULL, worker, &chunks[i]);
         }
-    }
-    for (size_t i = 1; i < availableThreads; i++)
-    {
-        pthread_join(workers[i], NULL);
-        write(STDOUT_FILENO, chunks[i].buff, chunks[i].buffsize);
-        free(chunks[i].buff);
-    }
 
-    munmap(addr, length + offset - pa_offset);
-    close(fd);
+        for (size_t i = 1; i < availableThreads; i++)
+        {
+            pthread_join(workers[i], NULL);
+            write(STDOUT_FILENO, chunks[i].buff, chunks[i].buffsize);
+            free(chunks[i].buff);
+        }
 
-    exit(EXIT_SUCCESS);
+        munmap(addr, length + offset - pa_offset);
+        close(fd);
+    }
     return (0);
 }
