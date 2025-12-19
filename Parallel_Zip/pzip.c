@@ -177,5 +177,10 @@ int main(int argc, char *argv[])
         munmap(addr, filesize);
         close(fd);
     }
+    if (has_pending)
+    {
+        fwrite(&pending_count, sizeof(int), 1, stdout);
+        fwrite(&pending_char, 1, 1, stdout);
+    }
     return (0);
 }
