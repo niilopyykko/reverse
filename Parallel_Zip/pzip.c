@@ -83,16 +83,31 @@ int main(int argc, char *argv[])
 
         fd = open(argv[i], O_RDONLY);
         if (fd == -1)
+        {
             perror("open");
+            continue;
+        }
 
         if (fstat(fd, &sb) == -1) /* To obtain file size */
+        {
             perror("fstat");
+            continue;
+        }
 
         size_t filesize = sb.st_size;
+        if (filesize == 0) // check for empty file
+        {
+            close(fd);
+            continue;
+        }
         addr = mmap(NULL, filesize, PROT_READ,
                     MAP_PRIVATE, fd, 0);
         if (addr == MAP_FAILED)
+        {
             perror("mmap");
+            close(fd);
+            continue;
+        }
 
         size_t chunk_size = filesize / availableThreads;
 
@@ -112,7 +127,8 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < availableThreads; i++)
         {
             pthread_join(workers[i], NULL);
-            write(STDOUT_FILENO, chunks[i].buff, chunks[i].buffsize);
+            fwrite(&chunks[i].buffsize, sizeof(int), 1, stdout);
+            fwrite(&chunks[i].buff, sizeof(int), 1, stdout);
             free(chunks[i].buff);
         }
 
