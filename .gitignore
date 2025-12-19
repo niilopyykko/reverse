@@ -1,1 +1,11 @@
+# binaries
+reverse
+my-cat
+my-grep
+my-unzip
+my-zip
+pzip
+# stuff
+*.o
+.vscode/
 *.txt
