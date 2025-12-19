@@ -75,18 +75,12 @@ int main(int argc, char *argv[])
     {
         int fd;
         char *addr;
-        off_t offset, pa_offset;
-        size_t length;
         struct stat sb;
+        size_t filesize = sb.st_size;
 
         int availableThreads = get_nprocs(); // THIS TELLS THE PARALLELLISM^TM system how many cores/threads is available
         pthread_t workers[availableThreads];
         chunk chunks[availableThreads];
-
-        {
-            fprintf(stderr, "%s file offset [length]\n", argv[0]);
-            exit(EXIT_FAILURE);
-        }
 
         fd = open(argv[1], O_RDONLY);
         if (fd == -1)
@@ -95,34 +89,12 @@ int main(int argc, char *argv[])
         if (fstat(fd, &sb) == -1) /* To obtain file size */
             perror("fstat");
 
-        offset = atoi(argv[2]);
-        pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
-        /* offset for mmap() must be page aligned */
-
-        if (offset >= sb.st_size)
-        {
-            fprintf(stderr, "offset is past end of file\n");
-            exit(EXIT_FAILURE);
-        }
-
-        if (argc == 4)
-        {
-            length = atoi(argv[3]);
-            if (offset + length > sb.st_size)
-                length = sb.st_size - offset;
-            /* Can't display bytes past end of file */
-        }
-        else
-        { /* No length arg ==> display to end of file */
-            length = sb.st_size - offset;
-        }
-
-        addr = mmap(NULL, length + offset - pa_offset, PROT_READ,
-                    MAP_PRIVATE, fd, pa_offset);
+        addr = mmap(NULL, filesize, PROT_READ,
+                    MAP_PRIVATE, fd, NULL);
         if (addr == MAP_FAILED)
             perror("mmap");
 
-        size_t chunk_size = length / availableThreads;
+        size_t chunk_size = filesize / availableThreads;
 
         for (size_t i = 1; i < availableThreads; i++)
         {
@@ -141,7 +113,7 @@ int main(int argc, char *argv[])
             free(chunks[i].buff);
         }
 
-        munmap(addr, length + offset - pa_offset);
+        munmap(addr, filesize);
         close(fd);
     }
     return (0);
