@@ -31,13 +31,13 @@ typedef struct
 
 void *worker(void *arg)
 {
-    chunk *chunk = arg; // worker input back to chuck structure
-    int previousCharacter = 0;
-    int counter = 0;
+    chunk *chunk = arg;        // worker input back to chunk structure
+    int previousCharacter = 0; // init of counters
+    int counter = 0;           // init of counters
 
-    for (size_t i = chunk->start; i < chunk->end; i++)
+    for (size_t i = chunk->start; i < chunk->end; i++) // from start of chunk to end of chunk
     {
-        int currentCharacter = chunk->data[i];
+        int currentCharacter = chunk->data[i]; // assing one letter
 
         if (counter == 0)
         {
@@ -52,6 +52,8 @@ void *worker(void *arg)
         // memory addressing is needed for linking two or more chunks together in seperate worker instances
         // EXAMPLE: worker1 [aaaabb], worker2 [bbaaaa] should ultimately return [4a2b] and [2b4a]
         // this would be combined to [4a4b4a]
+
+        // Combining multiple files is done in main thread, because splitting up multiple files to multiple workers and making it print in order would be a nightmare
         {
             memcpy(chunk->buff + chunk->buffsize, &counter, sizeof(int)); // last matching character or only one match
             chunk->buffsize += sizeof(int);                               // clear buffer size
@@ -61,7 +63,7 @@ void *worker(void *arg)
             counter = 1;                          // save as above, but for local variables
         }
     }
-    if (counter > 0)
+    if (counter > 0) // same as above but for end of chunk
     {
         memcpy(chunk->buff + chunk->buffsize, &counter, sizeof(int));
         chunk->buffsize += sizeof(int);
@@ -72,16 +74,15 @@ void *worker(void *arg)
 int main(int argc, char *argv[])
 {
     // variables for consolidating 2 files with common last/fist character
+    int pendingAmount = 0;
+    unsigned char pendingChar = 0;
+    int isPending = 0; // ah yes boolean (should be true or false)
 
-    int pending_count = 0;
-    unsigned char pending_char = 0;
-    int has_pending = 0;
-
-    for (size_t i = 1; i < argc; i++)
+    for (size_t i = 1; i < argc; i++) // for loop for every file
     {
-        int fd;
-        char *addr;
-        struct stat sb;
+        int fd;         // file
+        char *addr;     // filedata
+        struct stat sb; // used for mmap
 
         int availableThreads = get_nprocs(); // THIS TELLS THE PARALLELLISM^TM system how many cores/threads is available
         pthread_t workers[availableThreads];
@@ -90,7 +91,8 @@ int main(int argc, char *argv[])
         fd = open(argv[i], O_RDONLY);
         if (fd == -1)
         {
-            perror("open");
+            perror(argv[i]);
+            close(fd);
             continue;
         }
 
@@ -106,11 +108,11 @@ int main(int argc, char *argv[])
             close(fd);
             continue;
         }
-        if (availableThreads > filesize) // limit threads to files
+        if (availableThreads > filesize) // limit threads to files to prevent empty threads
             availableThreads = filesize;
 
         addr = mmap(NULL, filesize, PROT_READ,
-                    MAP_PRIVATE, fd, 0);
+                    MAP_PRIVATE, fd, 0); // mmap man pages should explain this, because I can't
         if (addr == MAP_FAILED)
         {
             perror("mmap");
@@ -118,56 +120,56 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        size_t chunk_size = filesize / availableThreads;
+        size_t chunk_size = filesize / availableThreads; // split data into chunks depending on system resources
 
-        for (size_t i = 0; i < availableThreads; i++)
+        for (size_t i = 0; i < availableThreads; i++) // for every thread
         {
-            chunks[i].data = addr;
-            chunks[i].start = i * chunk_size;
-            if (i == availableThreads - 1) // IF LAST WORKER END IS END OF FILE
-                chunks[i].end = filesize;
-            else
-                chunks[i].end = chunks[i].start + chunk_size;                               // ELSE END OF CHUNK IS SIZE OF CHUNK FROM CHUNK START POSITION
-            chunks[i].buff = malloc((chunks[i].end - chunks[i].start) * (sizeof(int) + 1)); // worst case scenario size for chunk lenght
-            chunks[i].buffsize = 0;
-            pthread_create(&workers[i], NULL, worker, &chunks[i]);
+            chunks[i].data = addr;            // give chunk address of read data
+            chunks[i].start = i * chunk_size; // give chunk a place to start
+            if (i == availableThreads - 1)    // IF LAST WORKER END IS END OF FILE
+                chunks[i].end = filesize;     // last worker
+            else                              // not last worker
+                chunks[i].end = chunks[i].start + chunk_size;
+            chunks[i].buff = malloc((chunks[i].end - chunks[i].start) * (sizeof(int) + 1)); // worst case scenario size for chunk lenght plus some(maybe)
+            chunks[i].buffsize = 0;                                                         // reset
+            pthread_create(&workers[i], NULL, worker, &chunks[i]);                          // spawn worker
         }
 
         for (size_t i = 0; i < availableThreads; i++)
         {
-            pthread_join(workers[i], NULL);
+            pthread_join(workers[i], NULL); // make worker return
         }
 
         for (size_t i = 0; i < availableThreads; i++)
         {
-            char *character = chunks[i].buff;
-            char *nextCharacter = character + chunks[i].buffsize;
+            char *character = chunks[i].buff;                     // start of buffer
+            char *nextCharacter = character + chunks[i].buffsize; // end of buffer
 
-            while (character < nextCharacter)
+            while (character < nextCharacter) // while not at end
             {
-                int count;
-                unsigned char currentCharacter;
+                int count;                      // amount of characters
+                unsigned char currentCharacter; // what character
 
                 memcpy(&count, character, sizeof(int));
                 character += sizeof(int);
 
                 currentCharacter = *(unsigned char *)character;
-                character += 1;
+                character += 1; // advance "reading head"
 
-                if (has_pending && currentCharacter == pending_char)
+                if (isPending && currentCharacter == pendingChar) // if character is the same as previous
                 {
-                    pending_count += count;
+                    pendingAmount += count; // add one more
                 }
-                else
+                else // if character is not the same
                 {
-                    if (has_pending)
+                    if (isPending) // but there was 2 or more of the same character, we print the pending characters
                     {
-                        fwrite(&pending_count, sizeof(int), 1, stdout);
-                        fwrite(&pending_char, 1, 1, stdout);
+                        fwrite(&pendingAmount, sizeof(int), 1, stdout);
+                        fwrite(&pendingChar, 1, 1, stdout);
                     }
-                    pending_count = count;
-                    pending_char = currentCharacter;
-                    has_pending = 1;
+                    pendingAmount = count;          // reset
+                    pendingChar = currentCharacter; // change pending char to first char of this type (example aa[e]eee) this would have just written 2a and pending char would be [e]
+                    isPending = 1;                  // ah yes boolean (should be true or false)
                 }
             }
 
@@ -177,10 +179,10 @@ int main(int argc, char *argv[])
         munmap(addr, filesize);
         close(fd);
     }
-    if (has_pending)
+    if (isPending) // takes care of last char of last file...maybe
     {
-        fwrite(&pending_count, sizeof(int), 1, stdout);
-        fwrite(&pending_char, 1, 1, stdout);
+        fwrite(&pendingAmount, sizeof(int), 1, stdout);
+        fwrite(&pendingChar, 1, 1, stdout);
     }
     return (0);
 }

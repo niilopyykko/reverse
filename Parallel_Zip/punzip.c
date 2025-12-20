@@ -16,12 +16,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-pthread_mutex_t output_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t output_lock = PTHREAD_MUTEX_INITIALIZER; // lock for serial write
 
 typedef struct
 {
     const char *filename;
-} fileSpecs;
+} fileSpecs; // struct for passing filename between worker and main
 
 void *worker(void *arg)
 {
@@ -40,12 +40,12 @@ void *worker(void *arg)
     while (fread(&amount, sizeof(int), 1, readFile) &&
            fread(&character, sizeof(char), 1, readFile))
     {
-        pthread_mutex_lock(&output_lock);
+        pthread_mutex_lock(&output_lock); // lock thread so print is in order
         for (size_t i = 0; i < amount; i++)
         {
             printf("%c", character);
         }
-        pthread_mutex_unlock(&output_lock);
+        pthread_mutex_unlock(&output_lock); // unlock print for next file
     }
     fclose(readFile);
     return NULL;
@@ -58,16 +58,16 @@ int main(int argc, char *argv[])
         return 1;
     }
     pthread_t workers[argc - 1]; // one thread for each file
-    fileSpecs tasks[argc - 1];
+    fileSpecs tasks[argc - 1];   // list of tasks with filename from struct
 
     for (size_t i = 1; i < argc; i++)
     {
-        tasks[i - 1].filename = argv[i];
-        pthread_create(&workers[i - 1], NULL, worker, &tasks[i - 1]);
+        tasks[i - 1].filename = argv[i];                              // take arguments as filename to structs
+        pthread_create(&workers[i - 1], NULL, worker, &tasks[i - 1]); // create worker "processes" for each file
     }
     for (size_t i = 0; i < argc - 1; i++)
     {
-        pthread_join(workers[i], NULL);
+        pthread_join(workers[i], NULL); //"return" of worker
     }
     return (0);
 }

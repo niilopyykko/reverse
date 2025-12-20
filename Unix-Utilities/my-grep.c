@@ -24,21 +24,21 @@ int main(int argc, char *argv[])
     size_t bufsize = 32; // for getline
     FILE *fp;
 
-    if (argc <= 1)
+    if (argc <= 1) // eror
     {
         printf("my-grep: searchterm [file ...]\n");
         exit(1);
     }
 
-    char *hakusana = argv[1];
+    char *hakusana = argv[1]; // the word to search
 
-    if (argc == 2)
+    if (argc == 2) // if only 2 arguments
     {
-        while (getline(&buffer, &bufsize, stdin) != -1)
+        while (getline(&buffer, &bufsize, stdin) != -1) // read user input
         {
-            if (strstr(buffer, hakusana) != 0) // man strstr
+            if (strstr(buffer, hakusana) != 0) // man strstr //compare string in buffer and searchterm
             {
-                printf(TEXT_BOLD TEXT_RED "%s" TEXT_BOLD_OFF TEXT_WHITE, buffer);
+                printf(TEXT_BOLD TEXT_RED "%s" TEXT_BOLD_OFF TEXT_WHITE, buffer); // should not print whole buffer red, but only searchterm...too lazy to fix
             }
         }
     }
