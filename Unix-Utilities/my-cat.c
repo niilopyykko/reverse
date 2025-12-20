@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 {
     if (argc <= 1)
     {
+        printf("my-cat: file1 [file2 ...]\n");
         exit(0);
     }
     for (size_t i = 1; i <= argc - 1; i++)
@@ -20,12 +21,14 @@ int main(int argc, char *argv[])
             printf("cannot open file\n");
             exit(1);
         }
-        while (!feof(fp))
+        do
         {
             char buffer[100];
-            fgets(buffer, 100, fp);
-            printf("%s", buffer);
-        }
+            if ((fgets(buffer, 100, fp)) != NULL) // NULL CHECK FOR EMPTLY LINE IN FILE
+            {
+                printf("%s", buffer);
+            }
+        } while (!feof(fp));
         fclose(fp);
     }
     return (0);
