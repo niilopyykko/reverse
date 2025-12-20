@@ -2,7 +2,7 @@
 
 This repository contains multiple Unix-style utilities written in C.
 
-## Programs
+## Program manuals
 
 - reverse → see reverse/manual.md
 - utilities → see Unix-Utilities/manual.md
